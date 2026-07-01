@@ -1,0 +1,38 @@
+# ============================================================================
+# Pi-hole DNS Manager Configuration
+# ============================================================================
+
+pihole:
+  # Pi-hole Server
+  host: "192.168.1.7"
+
+  # Zugriffsmethode: "ssh" (empfohlen) oder "api" (nur Pi-hole v5)
+  access_method: "ssh"
+
+  # SSH-Zugriff (für access_method: ssh)
+  ssh_user: "root"
+  # SSH-Key wird automatisch verwendet (~/.ssh/id_rsa oder ~/.ssh/id_ed25519)
+
+  # Config-Dateien (für SSH-Zugriff)
+  custom_list: "/etc/pihole/hosts/custom.list"  # Pi-hole v6 Pfad
+
+  # API-Zugriff (nur für Pi-hole v5, deprecated in v6)
+  api_endpoint: "http://192.168.1.7/admin/api.php"
+  api_token_env: "PIHOLE_API_TOKEN"  # Nur für v5
+
+  # DNS-Einstellungen
+  default_ttl: 3600
+
+  # Traefik IP (für DNS A-Records)
+  traefik_ip: "192.168.1.23"
+
+# Logging
+logging:
+  enabled: true
+  level: "INFO"
+  file: "/var/log/pihole-dns-manager.log"
+
+# Timeouts
+timeouts:
+  api_request: 30
+  dns_propagation: 5

@@ -760,6 +760,8 @@ class CertificateManager:
       entryPoints:
         - websecure
       service: {hostname_short}
+      middlewares:
+        - securityHeaders
       tls:
         certResolver: letsencrypt
 
@@ -769,6 +771,18 @@ class CertificateManager:
         serversTransport: insecureTransport
         servers:
           - url: "{backend_ip}"
+
+  middlewares:
+    securityHeaders:
+      headers:
+        stsSeconds: 15552000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        forceSTSHeader: true
+        customFrameOptionsValue: "SAMEORIGIN"
+        contentTypeNosniff: true
+        browserXssFilter: true
+        referrerPolicy: "no-referrer"
 """
         else:
             # step-ca: Verwende existierende Zertifikate
@@ -782,6 +796,8 @@ class CertificateManager:
       entryPoints:
         - websecure
       service: {hostname_short}
+      middlewares:
+        - securityHeaders
       tls:
         certResolver: internal
         domains:
@@ -793,6 +809,18 @@ class CertificateManager:
         serversTransport: insecureTransport
         servers:
           - url: "{backend_ip}"
+
+  middlewares:
+    securityHeaders:
+      headers:
+        stsSeconds: 15552000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        forceSTSHeader: true
+        customFrameOptionsValue: "SAMEORIGIN"
+        contentTypeNosniff: true
+        browserXssFilter: true
+        referrerPolicy: "no-referrer"
 """
 
         # Schreibe Config auf Traefik-Server

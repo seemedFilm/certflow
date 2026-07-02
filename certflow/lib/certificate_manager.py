@@ -329,6 +329,23 @@ class CertificateManager:
 
         conn.close()
 
+        # Erstelle Traefik-Config für Let's Encrypt
+        traefik_config_created = False
+        if backend_ip:
+            try:
+                self._create_traefik_service(hostname, backend_ip, user, cert_type='letsencrypt')
+                traefik_config_created = True
+            except Exception as e:
+                # Log Error aber wirf keine Exception
+                self._log_audit(
+                    action="create_traefik_service",
+                    hostname=hostname,
+                    user=user,
+                    status="error",
+                    message=f"Traefik-Config konnte nicht erstellt werden: {str(e)}",
+                    details={"error": str(e)}
+                )
+
         # Audit-Log
         self._log_audit(
             action="create_certificate",
@@ -339,7 +356,8 @@ class CertificateManager:
             details={
                 "type": "letsencrypt",
                 "expires_at": expires_at.isoformat(),
-                "auto_renew": auto_renew
+                "auto_renew": auto_renew,
+                "traefik_config_created": traefik_config_created
             }
         )
 
@@ -351,7 +369,8 @@ class CertificateManager:
             "key_path": "managed_by_traefik",
             "expires_at": expires_at.isoformat(),
             "auto_renew": auto_renew,
-            "status": "pending"
+            "status": "pending",
+            "traefik_config_created": traefik_config_created
         }
 
     def list_certificates(self) -> List[Dict]:
@@ -708,14 +727,15 @@ class CertificateManager:
         conn.close()
         return logs
 
-    def _create_traefik_service(self, hostname: str, backend_ip: str, user: str):
+    def _create_traefik_service(self, hostname: str, backend_ip: str, user: str, cert_type: str = 'step-ca'):
         """
-        Erstelle Traefik-Config direkt (Zertifikat wurde bereits von cert-manager erstellt)
+        Erstelle Traefik-Config direkt
 
         Args:
             hostname: Service-Hostname
             backend_ip: Backend-Server URL (z.B. https://192.168.1.50:8080)
             user: User der die Aktion ausführt
+            cert_type: 'step-ca' oder 'letsencrypt'
         """
         traefik_config = self.config.get('traefik', {})
 
@@ -727,13 +747,34 @@ class CertificateManager:
         traefik_ssh_key = traefik_config['ssh_key']
         traefik_config_path = traefik_config.get('config_path', '/docker/volume/traefik/dynamic')
 
-        # Bestimme Zertifikats-Pfade (wurden bereits von step-ca erstellt)
-        hostname_short = hostname.replace('.internal', '')
-        cert_path = f"/srv/pki/{hostname_short}/fullchain.crt"
-        key_path = f"/srv/pki/{hostname_short}/{hostname_short}.key"
+        # Erstelle Router-Namen (sanitize hostname für YAML)
+        hostname_short = hostname.replace('.internal', '').replace('.', '-')
 
-        # Erstelle Traefik-Config YAML
-        config_yaml = f"""http:
+        # Erstelle Traefik-Config YAML je nach Zertifikatstyp
+        if cert_type == 'letsencrypt':
+            # Let's Encrypt: Traefik holt Zertifikat automatisch
+            config_yaml = f"""http:
+  routers:
+    {hostname_short}:
+      rule: "Host(`{hostname}`)"
+      entryPoints:
+        - websecure
+      service: {hostname_short}
+      tls:
+        certResolver: letsencrypt
+
+  services:
+    {hostname_short}:
+      loadBalancer:
+        servers:
+          - url: "{backend_ip}"
+"""
+        else:
+            # step-ca: Verwende existierende Zertifikate
+            cert_path = f"/srv/pki/{hostname_short}/fullchain.crt"
+            key_path = f"/srv/pki/{hostname_short}/{hostname_short}.key"
+
+            config_yaml = f"""http:
   routers:
     {hostname_short}:
       rule: "Host(`{hostname}`)"

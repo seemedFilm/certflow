@@ -766,6 +766,7 @@ class CertificateManager:
   services:
     {hostname_short}:
       loadBalancer:
+        serversTransport: insecureTransport
         servers:
           - url: "{backend_ip}"
 """
@@ -789,6 +790,7 @@ class CertificateManager:
   services:
     {hostname_short}:
       loadBalancer:
+        serversTransport: insecureTransport
         servers:
           - url: "{backend_ip}"
 """
